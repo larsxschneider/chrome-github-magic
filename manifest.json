@@ -1,0 +1,22 @@
+{
+  "name": "github magic!",
+  "version": "1.0",
+  "description": "Enhances Github diff pages. Click on a line number to open or Option/Alt + click on a line number to edit the file at the position.",
+  "homepage_url": "https://github.com/larsxschneider/chrome-github-magic",
+  "content_scripts" : [
+    {
+      "matches" : [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js" : ["jquery.min.js", "contentscript.js"],
+      "run_at" : "document_end",
+      "all_frames" : false
+    }
+  ],
+  "icons" : {
+    "48" : "icon-48.png",
+    "128" : "icon-128.png"
+  },
+  "manifest_version": 2
+}
