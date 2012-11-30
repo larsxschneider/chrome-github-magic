@@ -17,10 +17,10 @@ Get the app from the [Chrome Web Store](https://chrome.google.com/webstore/detai
 Lars Schneider (@kit3bus)
 
 
-## License
+## License / 3rd Party Components
 
 Github Magic is available under the BSD license. See the LICENSE file for more info.
 
 [Icon](http://openclipart.org/detail/83863/magic-wand-by-jhnri4)
-
 [jQuery](http://jquery.org/license/)
+[jQuery-Relative-Date](https://github.com/drinks/jquery-relative-date)

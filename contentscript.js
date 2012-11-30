@@ -1,12 +1,3 @@
-// Try to find a named branch in the current page
-function getNamedBranch() {
- 	return $('.pull-description .commit-ref .css-truncate-target')
- 			.last()
- 			.map(function() { return $(this).text() })
- 			.get(0);
-}
-
-
 // Try to find diff file line numbers on the current page and link them their locations
 function updateLineNumberButtons() {
 	$('.linkable-line-number').each(function(i, el) {
@@ -19,7 +10,7 @@ function updateLineNumberButtons() {
 
         		// If the used presses the `alt` key we try to open the file for editing:
         		if(mouseEvent.altKey) {
-          			var branch = getNamedBranch();
+          			var branch = getPullRequestHeadBranch();
 
           			if(branch) {
             			baseURL = baseURL.replace(/blob\/[a-z0-9]+/, 'edit/' + branch);
@@ -62,6 +53,196 @@ function gotoLine() {
 }
 
 
+// Returns `true` if we are on a Github Pull Request page
+function isPullRequestPage() {
+  var pullRequestMatcher =/pull\/[0-9]+(\/files)?$/;
+  return pullRequestMatcher.exec(window.location.pathname);
+}
+
+
+// Returns a Github URL
+function getFileURL(command, fork, branch, file)
+{
+  return window.location.origin + '/' +  
+         fork +
+         window.location.pathname.match(/\/[-A-Za-z0-9_]+/g)[1] + '/' + 
+         command + '/' + branch + '/' + file;
+}
+
+
+// Returns a Github blame URL
+function getBlameURL(fork, branch, file)
+{
+  return getFileURL('blame', fork, branch, file);
+}
+
+
+// Returns the head branch of the current Pull Request
+function getPullRequestHeadBranch() {
+    return $('.pull-description .commit-ref .css-truncate-target')
+      .last()
+      .text();
+}
+
+
+// Returns the fork of the head branch of the current Pull Request
+function getPullRequestHeadBranchFork() {
+    var fork = $('.pull-description .commit-ref .css-truncate-target')
+                .last()
+                .prev()
+                .text();
+
+    // If the head and base branch is in the same fork, we need to read the fork name differently:
+    if (!fork) {
+      fork = $('.pull-header-username').text()
+    }
+    return fork;
+}
+
+
+// Performs git blame on a file in a branch and 
+// calls the callback with parameters `file`, `startLineNumber` and `commitMessage`
+function blame(fork, branch, file, callback) {
+  console.log(getBlameURL(fork, branch, file));
+  $.ajax({
+    url: getBlameURL(fork, branch, file),
+    success: function(data) {
+      console.log('Received blame for ' + file);
+      $(data).each(function(){ 
+        if ($(this).is('div')) {
+          var sections = $('.highlight .section-first', this);
+
+          for (var i=0; i<sections.length; i++)
+          { 
+            var author = $('.commitinfo', sections[i]).find('[rel="author"]').html();
+            if (!author) {
+              author = $('.commitinfo', sections[i]).find('a').last().html();
+            }
+
+            var commitDate = $('.commitinfo .date', sections[i]).html();
+            var commitMessage = $('.commitinfo .message', sections[i]).attr('title');
+            var startLineNumber = parseInt($('.line-number', sections[i]).html());
+
+            if (i<sections.length-1) {
+              var endLineNumber = parseInt($('.line-number', sections[i+1]).html()) - 1;
+            } else {
+              var endLineNumber = parseInt($('.line-number', this).last().html());
+            }
+
+            callback(file, startLineNumber, endLineNumber, author, commitDate, commitMessage);
+          }
+        }
+      });
+    }
+  });
+}
+
+
+// Returns a string containing the distance of time in words between `from` and now
+// Source: https://github.com/drinks/jquery-relative-date/blob/master/jquery.relative-date.js
+function distance_of_time_in_words(from) {
+  var today = new Date;
+  var distance_in_seconds = ((today - Date.parse(from)) / 1000);
+  var distance_in_minutes = Math.floor(distance_in_seconds / 60);
+
+  if (distance_in_minutes == 0) { return 'less than a minute ago'; }
+  if (distance_in_minutes == 1) { return 'a minute ago'; }
+  if (distance_in_minutes < 45) { return distance_in_minutes + ' minutes ago'; }
+  if (distance_in_minutes < 90) { return 'about 1 hour ago'; }
+  if (distance_in_minutes < 1440) { return 'about ' + Math.round(distance_in_minutes / 60) + ' hours ago'; }
+  if (distance_in_minutes < 2880) { return '1 day ago'; }
+  if (distance_in_minutes < 43200) { return Math.floor(distance_in_minutes / 1440) + ' days ago'; }
+  if (distance_in_minutes < 86400) { return 'about 1 month ago'; }
+  if (distance_in_minutes < 525960) { return Math.floor(distance_in_minutes / 43200) + ' months ago'; }
+  if (distance_in_minutes < 1051199) { return 'about 1 year ago'; }
+
+  return 'over ' + Math.floor(distance_in_minutes / 525960) + ' years ago';
+}
+
+
+function updatePullRequestFilesPage(file, startLineNumber, endLineNumber, author, commitDate, commitMessage) {
+
+  var data = $('.file .meta').filter('div[data-path="' + file + '"]').parent().find('.data');
+
+  // return;
+  var sourceCodeLines = data.find('.line_numbers.linkable-line-number')
+                            .filter('td[id*="R"]')
+                            .filter(function() { 
+                               var lineNumber = parseInt($(this).html());
+                               return (startLineNumber <= lineNumber) && (lineNumber <= endLineNumber); });
+  
+  var numberOfsourceCodeLiness = endLineNumber - startLineNumber + 1
+  var sourceCodeLinesHeight = 16;
+  var commitBracketHeigth = sourceCodeLines.length * sourceCodeLinesHeight + 2;
+
+  var commitBracket = $('<div style="' + 
+                          'position:absolute;' +
+                          'display:none;' +
+                          'border-radius:3px; border-bottom-right-radius:0px;' +
+                          'width:3px; height:' + commitBracketHeigth + 'px;' +
+                          'background-color:#557fc5;' +
+                        '">').appendTo(sourceCodeLines.first())
+
+  var commitInfo = $('<div style="' + 
+                       'position:absolute;' +
+                       'max-width:650px; width:650px;' + 
+                       'border:1px #557fc5 solid; border-radius:3px; border-top-left-radius:0px;' +
+                       'padding:7px 10px;' +
+                       'text-align: left;' +
+                       'display:none;' + 
+                       'color:#111111;' +
+                       'z-index:9999;' +
+                       'background-color:#c8dcfc;' + 
+                     '">' + commitMessage + 
+                       '<div style="' +
+                         'font-size:smaller;' +
+                         'padding-top:6px;' +
+                       '">by ' + author + ', ' + distance_of_time_in_words(commitDate) +'</div>' +
+                     '</div>')
+                   .appendTo(sourceCodeLines.first());
+
+  $.each(sourceCodeLines, function(i) {
+    $(this).hover(function () {
+      commitInfo.show(); 
+
+      var divBasePosition = sourceCodeLines.position().top + sourceCodeLinesHeight;
+      var top = divBasePosition + i * sourceCodeLinesHeight;
+      var left = sourceCodeLines.outerWidth() * 2;
+
+      commitInfo.css('top', top + 'px');
+      commitInfo.css('left', left + 5 + 'px');
+
+      commitBracket.show();
+      commitBracket.css('top', sourceCodeLines.position().top + 'px');
+      commitBracket.css('left', left + 3 + 'px');
+
+
+    }, function () {
+      commitBracket.hide();
+      commitInfo.hide(); 
+    });
+  });
+
+}
+
+
+function updatePullRequest() {
+  if (isPullRequestPage()) {
+
+    // Read all modified files of this pull request
+    var modifiedFiles = $('.meta').map(function(){return $(this).attr('data-path')});
+
+    // Request a blame for all modified files
+    modifiedFiles.each(function(i, relativeFileURL) {
+      blame(getPullRequestHeadBranchFork(),
+            getPullRequestHeadBranch(), 
+            relativeFileURL,
+            updatePullRequestFilesPage);
+    })
+  }
+}
+
+
 // Detect a github page. I use this method instead of an URL check to support github enterprise
 // instances.
 function isGithubSite() {
@@ -72,5 +253,6 @@ function isGithubSite() {
 // Main function. Executed after on document end (as defined in manifest.json)
 if(isGithubSite()) {
 	updateLineNumberButtons();
+  updatePullRequest();
 	gotoLine();
 }
