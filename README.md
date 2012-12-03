@@ -22,5 +22,7 @@ Lars Schneider (@kit3bus)
 Github Magic is available under the BSD license. See the LICENSE file for more info.
 
 [Icon](http://openclipart.org/detail/83863/magic-wand-by-jhnri4)
+
 [jQuery](http://jquery.org/license/)
+
 [jQuery-Relative-Date](https://github.com/drinks/jquery-relative-date)

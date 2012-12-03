@@ -94,7 +94,8 @@ function getPullRequestHeadBranchFork() {
 
     // If the head and base branch is in the same fork, we need to read the fork name differently:
     if (!fork) {
-      fork = $('.pull-header-username').text()
+      fork = window.location.pathname.match(/\/[-A-Za-z0-9_]+/g)[0];
+      fork = fork.substring(1, fork.length);
     }
     return fork;
 }
