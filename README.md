@@ -4,6 +4,8 @@ Chrome extensions to enhance Github diff pages. Thanks to @agnoster for the insp
 
 Get the app from the [Chrome Web Store](https://chrome.google.com/webstore/detail/github-magic/nebfkfejikecebcjgbbidmkpfnknbena)
 
+![Screenshot](chrome-github-magic/raw/master/screenshot.png))
+
 
 ## Usage
 
