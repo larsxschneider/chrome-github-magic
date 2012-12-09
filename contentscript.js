@@ -101,13 +101,43 @@ function getPullRequestHeadBranchFork() {
 }
 
 
+// Blame cache dictionary
+//    Key: github blame URL
+//    Value: Dictionary StartLine --> CommitInfo
+var gitBlameCache = {};
+
+
+// Read a commit info from the blame cache
+function getCommitInfo(file, lineNumber) {
+
+  // Go up in the file until we find the first line of a commit
+  var i = lineNumber;
+  while (  i >= 0 && !(i in gitBlameCache[file]) ) i--;
+
+  if (i >= 0)
+    return gitBlameCache[file][i];
+  else
+    return undefined;
+}
+
+
 // Performs git blame on a file in a branch and 
 // calls the callback with parameters `file`, `startLineNumber` and `commitMessage`
-function blame(fork, branch, file, callback) {
-  console.log(getBlameURL(fork, branch, file));
+function blame(fork, branch, file, lineNumber, callback) {
+
+  // Do request the blame if it was already requested
+  if (file in gitBlameCache) {
+    callback();
+    return;
+  }
+
+  gitBlameCache[file] = {};
+
+  var blameURL = getBlameURL(fork, branch, file);  
+  console.log(blameURL);
   $.ajax({
-    url: getBlameURL(fork, branch, file),
-    success: function(data) {
+    url: blameURL,
+    success: function(data, textStatus, jqXHR) {
       console.log('Received blame for ' + file);
       $(data).each(function(){ 
         if ($(this).is('div')) {
@@ -130,10 +160,26 @@ function blame(fork, branch, file, callback) {
               var endLineNumber = parseInt($('.line-number', this).last().html());
             }
 
-            callback(file, startLineNumber, endLineNumber, author, commitDate, commitMessage);
+            var commitInfo = {
+              author: author, 
+              date: commitDate, 
+              message: commitMessage,
+              startLineNumber: startLineNumber,
+              endLineNumber: endLineNumber
+            };
+
+            gitBlameCache[file][startLineNumber] = commitInfo;
           }
         }
       });
+      callback();
+    },
+    error: function(jqXHR, textStatus, errorThrown) {
+      // In case of an timeout we want to reload the blame again. In all other cases not. E.g.
+      // github returns an error if we perform a blame on an image.
+      if (textStatus === "timeout") {
+        delete gitBlameCache[file];
+      }
     }
   });
 }
@@ -161,85 +207,86 @@ function distance_of_time_in_words(from) {
 }
 
 
-function updatePullRequestFilesPage(file, startLineNumber, endLineNumber, author, commitDate, commitMessage) {
+// Augments the `githubLineNumberElement` on mouse hover with the commit info about the line 
+function updatePullRequestLineNumberElement(githubLineNumberElement, relativeFileURL, lineNumber) {
 
-  var data = $('.file .meta').filter('div[data-path="' + file + '"]').parent().find('.data');
+  var commitInfo = getCommitInfo(relativeFileURL, lineNumber);
 
-  // return;
-  var sourceCodeLines = data.find('.line_numbers.linkable-line-number')
-                            .filter('td[id*="R"]')
-                            .filter(function() { 
-                               var lineNumber = parseInt($(this).html());
-                               return (startLineNumber <= lineNumber) && (lineNumber <= endLineNumber); });
-  
-  var numberOfsourceCodeLiness = endLineNumber - startLineNumber + 1
-  var sourceCodeLinesHeight = 16;
-  var commitBracketHeigth = sourceCodeLines.length * sourceCodeLinesHeight + 2;
+  // Check if we have a valid commit info and if the mouse is still hovering over the element
+  if (!commitInfo || !$(githubLineNumberElement).data('mouseIsHovering'))
+    return;
+
+  // Remove the hover handler that creates the augmentation
+  $(githubLineNumberElement).unbind();
+  $(githubLineNumberElement).data('mouseIsHovering', false);
+
+  var linesHeight = 16;
+  var commitBracketHeigth = (commitInfo.endLineNumber - commitInfo.startLineNumber + 1) * linesHeight + 2;
+  var left = $(githubLineNumberElement).outerWidth() * 2 + 3;
+  var top = $(githubLineNumberElement).position().top - (lineNumber - commitInfo.startLineNumber) * linesHeight;
 
   var commitBracket = $('<div style="' + 
                           'position:absolute;' +
-                          'display:none;' +
                           'border-radius:3px; border-bottom-right-radius:0px;' +
-                          'width:3px; height:' + commitBracketHeigth + 'px;' +
+                          'width:3px; height:' + commitBracketHeigth + 'px; top:' + top + 'px; left:' + left + 'px;' + 
                           'background-color:#557fc5;' +
-                        '">').appendTo(sourceCodeLines.first())
+                        '">').appendTo(githubLineNumberElement)
 
   var commitInfo = $('<div style="' + 
                        'position:absolute;' +
-                       'max-width:650px; width:650px;' + 
+                       'max-width:650px; width:650px; left:' + (left + 2) + 'px;' + 
                        'border:1px #557fc5 solid; border-radius:3px; border-top-left-radius:0px;' +
                        'padding:7px 10px;' +
                        'text-align: left;' +
-                       'display:none;' + 
                        'color:#111111;' +
                        'z-index:9999;' +
                        'background-color:#c8dcfc;' + 
-                     '">' + commitMessage + 
+                     '">' + commitInfo.message + 
                        '<div style="' +
                          'font-size:smaller;' +
                          'padding-top:6px;' +
-                       '">by ' + author + ', ' + distance_of_time_in_words(commitDate) +'</div>' +
+                       '">by ' + commitInfo.author + ', ' + distance_of_time_in_words(commitInfo.date) +'</div>' +
                      '</div>')
-                   .appendTo(sourceCodeLines.first());
+                   .appendTo(githubLineNumberElement);
 
-  $.each(sourceCodeLines, function(i) {
-    $(this).hover(function () {
-      commitInfo.show(); 
-
-      var divBasePosition = sourceCodeLines.position().top + sourceCodeLinesHeight;
-      var top = divBasePosition + i * sourceCodeLinesHeight;
-      var left = sourceCodeLines.outerWidth() * 2;
-
-      commitInfo.css('top', top + 'px');
-      commitInfo.css('left', left + 5 + 'px');
-
-      commitBracket.show();
-      commitBracket.css('top', sourceCodeLines.position().top + 'px');
-      commitBracket.css('left', left + 3 + 'px');
-
-
-    }, function () {
-      commitBracket.hide();
-      commitInfo.hide(); 
-    });
+  $(githubLineNumberElement).hover(function () {
+    commitInfo.show(); 
+    commitBracket.show();
+  }, function () {
+    commitBracket.hide();
+    commitInfo.hide(); 
   });
-
 }
 
 
 function updatePullRequest() {
   if (isPullRequestPage()) {
 
-    // Read all modified files of this pull request
-    var modifiedFiles = $('.meta').map(function(){return $(this).attr('data-path')});
+    // Modify all line numbers to detect if the mouse hovers over them
+    var sourceCodeLines = $('.data').find('.line_numbers.linkable-line-number').filter('td[id*="R"]');
 
-    // Request a blame for all modified files
-    modifiedFiles.each(function(i, relativeFileURL) {
-      blame(getPullRequestHeadBranchFork(),
-            getPullRequestHeadBranch(), 
-            relativeFileURL,
-            updatePullRequestFilesPage);
-    })
+    $.each(sourceCodeLines, function(i, githubLineNumberElement) {
+      $(githubLineNumberElement).hover(function () {
+
+        $(githubLineNumberElement).data('mouseIsHovering', true); 
+
+        var relativeFileURL = $(githubLineNumberElement).parents('.file').children('.meta').attr('data-path');
+        var lineNumber = parseInt($(githubLineNumberElement).text());
+
+        if (relativeFileURL && lineNumber) {
+          blame(getPullRequestHeadBranchFork(),
+                getPullRequestHeadBranch(), 
+                relativeFileURL,
+                lineNumber,
+                function() {
+                  updatePullRequestLineNumberElement(githubLineNumberElement, relativeFileURL, lineNumber);
+                });
+        }
+      },
+      function () {
+        $(githubLineNumberElement).data('mouseIsHovering', false);
+      });
+    });
   }
 }
 
