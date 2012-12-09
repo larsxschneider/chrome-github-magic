@@ -220,10 +220,39 @@ function updatePullRequestLineNumberElement(githubLineNumberElement, relativeFil
   $(githubLineNumberElement).unbind();
   $(githubLineNumberElement).data('mouseIsHovering', false);
 
-  var linesHeight = 16;
-  var commitBracketHeigth = (commitInfo.endLineNumber - commitInfo.startLineNumber + 1) * linesHeight + 2;
+  var top;
+  var bottom;
+
+  // Find top most line number of the commit
+  var lineNumberElement = $(githubLineNumberElement);
+  do {
+    top = lineNumberElement.position().top;
+    
+    var parent = lineNumberElement.parent().prev();
+    while (parent.hasClass('inline-comments')) {
+      parent = parent.prev();
+    }
+
+    lineNumberElement = parent.find('.line_numbers.linkable-line-number').filter('td[id*="R"]');
+    var i = parseInt(lineNumberElement.text());
+  } while (isNaN(i) === false && i >= commitInfo.startLineNumber)
+
+  // Find bottom most line number of the commit
+  lineNumberElement = $(githubLineNumberElement);
+  do {
+    bottom = lineNumberElement.position().top + lineNumberElement.height();
+    
+    var parent = lineNumberElement.parent().next();
+    while (parent.hasClass('inline-comments')) {
+      parent = parent.next();
+    }
+
+    lineNumberElement = parent.find('.line_numbers.linkable-line-number').filter('td[id*="R"]');
+    var i = parseInt(lineNumberElement.text());
+  } while (isNaN(i) === false && i <= commitInfo.endLineNumber)
+
+  var commitBracketHeigth = bottom - top + 2;
   var left = $(githubLineNumberElement).outerWidth() * 2 + 3;
-  var top = $(githubLineNumberElement).position().top - (lineNumber - commitInfo.startLineNumber) * linesHeight;
 
   var commitBracket = $('<div style="' + 
                           'position:absolute;' +
