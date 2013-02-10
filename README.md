@@ -11,7 +11,7 @@ Get the app from the [Chrome Web Store](https://chrome.google.com/webstore/detai
 
 1. Click on a line number to open the source file at the clicked position (e.g. to see more context). 
 
-2. Option/Alt + click on a line number to edit the file at the clicked position (only on named branches).
+2. Option/Ctrl + click on a line number to edit the file at the clicked position (only on named branches).
 
 
 ## Contact

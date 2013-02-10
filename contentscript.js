@@ -8,8 +8,9 @@ function updateLineNumberButtons() {
         		var baseURL = $(el).first().parentsUntil('.diff-view').last().find('.button-group').children(0).attr('href');
             var lineParameter = '#L' + line + '-' + line;
 
-        		// If the used presses the `alt` key we try to open the file for editing:
-        		if(mouseEvent.altKey) {
+        		// If the used presses the `ctrl` key we try to open the file for editing:
+        		if(mouseEvent.ctrlKey) {
+
           			var branch = getPullRequestHeadBranch();
 
           			if(branch) {
