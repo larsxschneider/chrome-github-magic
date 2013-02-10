@@ -1,7 +1,7 @@
 {
   "name": "github magic!",
-  "version": "1.1.2",
-  "description": "Enhances Github diff pages. Click on a line number to open or Option/Alt + click on a line number to edit the file at the position.",
+  "version": "1.1.3",
+  "description": "Enhances Github diff pages. Click on a line number to open or Option/Ctrl + click on a line number to edit the file at the position.",
   "homepage_url": "https://github.com/larsxschneider/chrome-github-magic",
   "content_scripts" : [
     {
