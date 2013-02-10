@@ -5,8 +5,8 @@ function updateLineNumberButtons() {
       		var line = $.trim(el.innerText);
       		if(parseInt(line)) {
         		// `line` seems to be a valid line number. Generate the URL to view the file at this line.
-        		var baseURL = $(el).first().parentsUntil('.diff-view').last().find('.grouped-button')[0].href;
-        		var lineParameter = '#L' + line + '-' + line;
+        		var baseURL = $(el).first().parentsUntil('.diff-view').last().find('.button-group').children(0).attr('href');
+            var lineParameter = '#L' + line + '-' + line;
 
         		// If the used presses the `alt` key we try to open the file for editing:
         		if(mouseEvent.altKey) {
@@ -259,7 +259,7 @@ function updatePullRequestLineNumberElement(githubLineNumberElement, relativeFil
                           'border-radius:3px; border-bottom-right-radius:0px;' +
                           'width:3px; height:' + commitBracketHeigth + 'px; top:' + top + 'px; left:' + left + 'px;' + 
                           'background-color:#557fc5;' +
-                        '">').appendTo(githubLineNumberElement)
+                        '">').appendTo($(githubLineNumberElement).parent())
 
   var commitInfo = $('<div style="' + 
                        'position:absolute;' +
@@ -276,7 +276,7 @@ function updatePullRequestLineNumberElement(githubLineNumberElement, relativeFil
                          'padding-top:6px;' +
                        '">by ' + commitInfo.author + ', ' + distance_of_time_in_words(commitInfo.date) +'</div>' +
                      '</div>')
-                   .appendTo(githubLineNumberElement);
+                   .appendTo($(githubLineNumberElement).parent());
 
   $(githubLineNumberElement).hover(function () {
     commitInfo.show(); 
